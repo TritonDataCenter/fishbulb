@@ -1,0 +1,24 @@
+- Generalize legend code to address issue where clicking a heat map bucket
+  gives a legend which is not sorted and whose values cannot be seen if there
+  are too many.  This should use the same heuristic as the line graph legend
+  code, handling too many values (adding "..." and sum, with "sum" labeled
+  either "range average" or total as the case may be) and also handling
+  selection.
+- Legends
+  - figure out why clicks sometimes get lost
+  - right-click option to add predicate + decomposition
+  - right-click option to add pivot
+- Make y-axis labels be more specific (e.g., 1s instead of 1000000000)
+- Implement advanced create-time options
+  - Save data persistently
+  - Tweak granularity, ndatapoints, timeout interval
+  - Add decompositions and predicates with initial metric
+  - Add customer-scoped view
+  - Add public API backend
+- Other advanced options:
+  - change heat map bucket size
+  - option to show median, Nth percentile
+- Handle errors better, including:
+  - CA not available at startup
+  - Transient failure of the CA service
+  - Heat map: impose maximum width based on backend's maximum
