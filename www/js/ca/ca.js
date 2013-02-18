@@ -23,31 +23,21 @@
 var Rickshaw; /* XXX */
 
 var caUniqueId = 0;			/* unique widget identifier */
-var caDefaultBarColor = '#d57f4d';	/* default color for bar graphs */
+var caDefaultBarColor = '#E57F44';	/* default color for bar graphs */
 var caDefaultHue = 22;			/* default hue for heat maps */
 
 /*
  * We use a set of secondary colors to highlight individual components in bar
- * charts or heatmaps.  We compute these using a fixed set of "base" colors and
- * varying the saturation.
+ * charts or heatmaps.
  */
-var caColorsBase = [	/* base colors for secondary colors */
-    '#edc240',
-    '#afd8f8',
-    '#cb4b4b',
-    '#4da74d',
-    '#9440ed'
-];
-var caColors = [];	/* actual secondary colors */
-[ 0.5, 1.0 ].forEach(function (base_saturation) {
-	caColorsBase.forEach(function (base) {
-		var basecolor = new caColor(base);
-		var saturation = basecolor.saturation() * base_saturation;
-
-		caColors.push(new caColor([ basecolor.hue(), saturation,
-		    basecolor.value() ], 'hsv'));
-	});
-});
+var caColors = [
+    '#4785cf',
+    '#3bcfa6',
+    '#f04567',
+    '#6b99cf',
+    '#63cf81',
+    '#f0738b'
+].map(function (rgb) { return (new caColor(rgb)); });
 
 /*
  * This object is created with parameters identifying the CA instance (including
@@ -1331,17 +1321,17 @@ caWidgetChart.prototype.onUnpause = function ()
 	this.view().catchUp();
 };
 
-caWidgetChart.prototype.hueAlloc = function ()
+caWidgetChart.prototype.colorAlloc = function ()
 {
 	if (this.cc_hues.length > 0)
 		return (this.cc_hues.pop());
 
-	return (caColors[this.cc_nhues++ % caColors.length].hue());
+	return (caColors[this.cc_nhues++ % caColors.length]);
 };
 
-caWidgetChart.prototype.hueFree = function (hue)
+caWidgetChart.prototype.colorFree = function (color)
 {
-	this.cc_hues.push(hue);
+	this.cc_hues.push(color);
 };
 
 caWidgetChart.prototype.legendClicked = function (event)
@@ -1362,18 +1352,18 @@ caWidgetChart.prototype.legendClicked = function (event)
 		return;
 
 	var component = $(row[0]).text();
-	var hue;
+	var color;
 
 	if (!row[2])
 		return;
 
 	if (this.cc_selected.hasOwnProperty(component)) {
-		hue = this.cc_selected[component];
+		color = this.cc_selected[component];
 		delete (this.cc_selected[component]);
-		this.hueFree(hue);
+		this.colorFree(color);
 	} else {
-		hue = this.hueAlloc();
-		this.cc_selected[component] = hue;
+		color = this.colorAlloc();
+		this.cc_selected[component] = color;
 	}
 
 	this.onSelectionChange();
@@ -1424,7 +1414,7 @@ caWidgetChart.prototype.isSelected = function (component)
 
 caWidgetChart.prototype.selectedHue = function (component)
 {
-	return (this.cc_selected[component]);
+	return (this.cc_selected[component].hue());
 };
 
 caWidgetChart.prototype.selectedColor = function (component)
@@ -1432,8 +1422,7 @@ caWidgetChart.prototype.selectedColor = function (component)
 	if (!this.cc_selected.hasOwnProperty(component))
 		return (null);
 
-	return (new caColor([ this.cc_selected[component], 0.9, 0.95 ],
-	    'hsv').css());
+	return (this.cc_selected[component]);
 };
 
 caWidgetChart.prototype.tick = function ()
@@ -1838,11 +1827,12 @@ caWidgetLineGraph.prototype.update = function ()
 
 	var tabledata = [];
 	for (key in value['componentAverages']) {
+		var color = widget.selectedColor(key);
 		tabledata.push([
 		    '<div>' + key + '</div>',
 		    Math.round(value['componentAverages'][key]),
 		    true,
-		    widget.selectedColor(key) || ''
+		    color === null ? '' : color.css()
 		]);
 	}
 
@@ -2167,9 +2157,10 @@ caWidgetHeatMap.prototype.showHeatmapDetails = function (details)
 		if (details['present'][key] === 0)
 			return;
 
+		var color = widget.selectedColor(key);
 		tabledata.push([ '<div>' + key + '</div>',
 		    details['present'][key], true,
-		    widget.selectedColor(key) || '' ]);
+		    color === null ? '' : color.css() ]);
 		total += details['present'][key];
 	});
 
@@ -2265,8 +2256,13 @@ caWidgetHeatMap.prototype.update = function ()
 	var widget = this;
 	this.cm_legend_default = (point['y']['present'] || []).sort().map(
 	    function (p) {
-		var color = widget.selectedColor(p) || '';
-		return ([ '<div>' + p + '</div>', '', true, color ]);
+		var color = widget.selectedColor(p);
+		return ([
+		    '<div>' + p + '</div>',
+		    '',
+		    true,
+		    color === null ? '' : color.css()
+		]);
 	    });
 
 	if (!this.cm_legend_override) {

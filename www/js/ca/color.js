@@ -19,8 +19,7 @@ function caColor()
 	var rgb, space;
 
 	if (arguments.length === 1) {
-		this.css = arguments[0];
-		rgb = $.color.parse(this.css);
+		rgb = $.color.parse(arguments[0]);
 		this.rgb = [ rgb.r, rgb.g, rgb.b ];
 		return;
 	}
