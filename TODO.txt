@@ -1,5 +1,4 @@
 - Legends
-  - figure out why clicks sometimes get lost
   - right-click option to add predicate + decomposition
   - right-click option to add pivot
 - Make y-axis labels be more specific (e.g., 1s instead of 1000000000)

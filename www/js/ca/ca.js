@@ -666,8 +666,10 @@ caPanel.prototype.fetchView = function (view)
 			npoints--;
 		}
 
-		if (npoints === 0)
+		if (npoints === 0) {
+			view.onUpdate();
 			return;
+		}
 	}
 
 	// console.log('fetching for ' + view.cv_instnid + ' from ' +
@@ -1341,21 +1343,16 @@ caWidgetChart.prototype.legendClicked = function (event)
 	    event.target.parentNode;
 	var row = this.cc_table.fnGetData(target);
 
+	console.log('click ' + event.target.tagName + '; row = ' + row);
+
 	if (row === null)
 		return;
 
-	/*
-	 * It shouldn't be necessary to special-case "...", but jQuery doesn't
-	 * handle this properly.
-	 */
-	if (row[0] == '...')
+	if (!row[2])
 		return;
 
 	var component = $(row[0]).text();
 	var color;
-
-	if (!row[2])
-		return;
 
 	if (this.cc_selected.hasOwnProperty(component)) {
 		color = this.cc_selected[component];
@@ -1827,12 +1824,12 @@ caWidgetLineGraph.prototype.update = function ()
 
 	var tabledata = [];
 	for (key in value['componentAverages']) {
-		var color = widget.selectedColor(key);
+		var ccolor = widget.selectedColor(key);
 		tabledata.push([
 		    '<div>' + key + '</div>',
 		    Math.round(value['componentAverages'][key]),
 		    true,
-		    color === null ? '' : color.css()
+		    ccolor === null ? '' : ccolor.css()
 		]);
 	}
 
