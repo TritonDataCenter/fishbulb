@@ -1444,12 +1444,96 @@ caWidgetChart.prototype.tick = function ()
 	this.update();
 };
 
-caWidgetChart.prototype.updateTable = function (data, uconf)
+/*
+ * Update the legend to display the given rows.  The legend is intended to
+ * display a set of components representing a breakdown of the metric in the
+ * chart.  For example, for the metric "system calls decomposed by application
+ * name", the rows in the legend represent individual application names like
+ * "node" or "mysqld".
+ *
+ * There may be a value associated with each component.  For bar charts, this
+ * value typically denotes the average over the whole interval.  For heat maps,
+ * when a bucket is selected, the value may denote the number of data points in
+ * each bucket.  For heat maps when no bucket is selected, there is no value at
+ * all.
+ *
+ * Each component may be selectable or not, and each selectable component may be
+ * selected or not.  Selected components are highlighted.
+ *
+ * Each row is represented with an array of
+ *
+ *     [ label, value, selectable, color ]
+ *
+ * where:
+ *
+ *     label		The label for the component (e.g., "mysqld")
+ *
+ *     value		A numeric value (e.g., a number of system calls)
+ *
+ *     selectable	Boolean indicating whether this component is selectable
+ *
+ *     color		If a non-empty string, indicates that this component is
+ *     			selected and should be highlighted with the given color
+ *
+ * If the row is selectable, the label should include a <div>.  The mechanism we
+ * use to highlight rows doesn't work on labels which are just text nodes.
+ *
+ * Additional options are available:
+ *
+ *     trim		If true, values should be present, and only the top rows
+ *     			by value should be shown.  Non-selectable rows will
+ *     			always be shown (as these usually indicate special or
+ *     			summary rows).
+ */
+caWidgetChart.prototype.updateLegend = function (urows, uopts)
 {
-	var conf, k;
+	var max = 9;
+	var options = uopts || {};
+	var rcomponents, rsummary, rows;
+	var restsum;
 
-	conf = {
-	    'aaData': data,
+	/*
+	 * Partition the rows into those which we may trim (the components) and
+	 * those which we won't (the summary rows).
+	 */
+	rcomponents = [];
+	rsummary = [];
+	urows.forEach(function (row) {
+		if (row[2])
+			rcomponents.push(row);
+		else
+			rsummary.push(row);
+	});
+
+	/*
+	 * Sort the components by value, then by label.  This is the order we
+	 * will display them in the table, and we'll also use this to trim the
+	 * list to show only the top values.
+	 */
+	rcomponents.sort(function (a, b) {
+		if (a[1] != b[1])
+			return (b[1] - a[1]);
+
+		return (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+	});
+
+	if (options['trim'] &&
+	    rcomponents.length + rsummary.length > max) {
+		restsum = rcomponents.slice(max - rsummary.length).reduce(
+		    function (p, elt) { return (p + elt[1]); }, 0);
+		rcomponents = rcomponents.slice(0, max - rsummary.length);
+		rsummary.unshift([ '...', restsum, false, '' ]);
+	} else if (rcomponents.length > 0) {
+		rsummary.unshift([ '&nbsp;', '&nbsp;', false, '' ]);
+	}
+
+	rows = rcomponents.concat(rsummary);
+
+	if (this.cc_table)
+		this.cc_table.fnDestroy();
+
+	this.cc_table = $(this.cc_components).dataTable({
+	    'aaData': rows,
 	    'bAutoWidth': false,
 	    'bDestroy': true,
 	    'bFilter': false,
@@ -1463,23 +1547,21 @@ caWidgetChart.prototype.updateTable = function (data, uconf)
 		'sTitle': '',
 		'sClass': 'caGraphLegendValue'
 	    }, {
+		/* selectable (boolean) */
 		'bVisible': false
 	    }, {
+		/* color (string) */
 		'bVisible': false
 	    } ],
 	    'oLanguage': {
 		'sEmptyTable': '',
 		'sZeroRecords': ''
+	    },
+	    'fnRowCallback': function (node, data) {
+	        if (data[3])
+			node.style.backgroundColor = data[3];
 	    }
-	};
-
-	for (k in uconf)
-		conf[k] = uconf[k];
-
-	if (this.cc_table)
-		this.cc_table.fnDestroy();
-
-	this.cc_table = $(this.cc_components).dataTable(conf);
+	});
 };
 
 caWidgetChart.prototype.updateWarning = function (show)
@@ -1754,52 +1836,19 @@ caWidgetLineGraph.prototype.update = function ()
 
 	this.cl_value = value;
 
-	var avgsum, compsum;
-	var keys, tabledata, val;
-
-	avgsum = Math.round(value['rangeAverage']);
-	keys = Object.keys(value['componentAverages']).sort(
-	    function (a, b) {
-		return (value['componentAverages'][b] -
-		    value['componentAverages'][a]);
-	    });
-
-	if (keys.length > 9) {
-		keys = keys.slice(0, 8);
-		compsum = 0;
-		tabledata = keys.map(function (comp) {
-			val = Math.round(value['componentAverages'][comp]);
-			compsum += val;
-
-			var color = widget.selectedColor(comp) || '';
-			return ([ '<div>' + comp + '</div>', val, true,
-			    color ]);
-		});
-
-		if (avgsum > compsum)
-			tabledata.push([ '...', avgsum - compsum, false, '' ]);
-	} else {
-		tabledata = keys.map(function (comp) {
-			val = Math.round(value['componentAverages'][comp]);
-			compsum += val;
-
-			var color = widget.selectedColor(comp) || '';
-			return ([ '<div>' + comp + '</div>', val, true,
-			    color ]);
-		});
-
-		if (keys.length > 0)
-			tabledata.push([ '&nbsp;', '&nbsp;', false, '' ]);
+	var tabledata = [];
+	for (key in value['componentAverages']) {
+		tabledata.push([
+		    '<div>' + key + '</div>',
+		    Math.round(value['componentAverages'][key]),
+		    true,
+		    widget.selectedColor(key) || ''
+		]);
 	}
 
-	tabledata.push([ 'Range average', avgsum, false, '' ]);
-	this.updateTable(tabledata, {
-	    'fnRowCallback': function (node, data) {
-		if (data[3])
-			node.style.backgroundColor = data[3];
-	    }
-	});
-
+	tabledata.push([
+	    'Range average', Math.round(value['rangeAverage']), false, '' ]);
+	this.updateLegend(tabledata, { 'trim': true });
 	this.updateWarning(!value['isComplete']);
 };
 
@@ -2046,8 +2095,8 @@ caWidgetHeatMap.prototype.scaleUpdated = function (ymin, ymax)
 	/*
 	 * Work around INTRO-583.
 	 */
-	if (ymax - ymin < 100)
-		ymax += 100;
+	if (ymax == ymin)
+		ymax = ymin + 1;
 
 	this.cm_params['ymin'] = ymin;
 
@@ -2055,8 +2104,6 @@ caWidgetHeatMap.prototype.scaleUpdated = function (ymin, ymax)
 		delete (this.cm_params['ymax']);
 	else
 		this.cm_params['ymax'] = ymax;
-
-	console.log(this.cm_params);
 };
 
 caWidgetHeatMap.prototype.onSelectionChange = function ()
@@ -2131,16 +2178,10 @@ caWidgetHeatMap.prototype.showHeatmapDetails = function (details)
 		tabledata = this.cm_legend_default;
 	} else {
 		this.cm_legend_override = true;
-		tabledata.push([ '&nbsp;', '&nbsp;', false, '' ]);
 		tabledata.push([ 'Total', total, false, '' ]);
 	}
 
-	this.updateTable(tabledata, {
-	    'fnRowCallback': function (node, data) {
-		if (data[3])
-			node.style.backgroundColor = data[3];
-	    }
-	});
+	this.updateLegend(tabledata, { 'trim': this.cm_legend_override });
 };
 
 caWidgetHeatMap.prototype.getZoom = function ()
@@ -2202,8 +2243,8 @@ caWidgetHeatMap.prototype.update = function ()
 	this.cm_rickshaw.configure({ 'max': this.cm_ymax });
 	this.cm_rickshaw.update();
 
-	if (this.cm_params['ymax'] == this.cm_scale_ymax &&
-	    this.cm_ymax < this.cm_scale_ymax)
+	if (this.cm_params['ymax'] === undefined &&
+	    this.cm_ymax != this.cm_scale_ymax)
 		this.cm_scale_ymax = this.cm_ymax;
 
 	$(this.cm_slider).slider({
@@ -2211,7 +2252,7 @@ caWidgetHeatMap.prototype.update = function ()
 	    'range': true,
 	    'min': this.cm_scale_ymin,
 	    'max': this.cm_scale_ymax,
-	    'step': 10,
+	    'step': 1,
 	    'values': [
 	        this.cm_params['ymin'],
 	        this.cm_params['ymax'] || this.cm_scale_ymax
@@ -2229,12 +2270,7 @@ caWidgetHeatMap.prototype.update = function ()
 	    });
 
 	if (!this.cm_legend_override) {
-		this.updateTable(this.cm_legend_default, {
-		    'fnRowCallback': function (node, data) {
-			if (data[3])
-				node.style.backgroundColor = data[3];
-		    }
-		});
+		this.updateLegend(this.cm_legend_default, { 'trim': false });
 	} else {
 		this.showHeatmapDetails(this.cm_details);
 	}

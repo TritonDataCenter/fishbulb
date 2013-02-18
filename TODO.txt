@@ -1,9 +1,3 @@
-- Generalize legend code to address issue where clicking a heat map bucket
-  gives a legend which is not sorted and whose values cannot be seen if there
-  are too many.  This should use the same heuristic as the line graph legend
-  code, handling too many values (adding "..." and sum, with "sum" labeled
-  either "range average" or total as the case may be) and also handling
-  selection.
 - Legends
   - figure out why clicks sometimes get lost
   - right-click option to add predicate + decomposition
