@@ -21,9 +21,6 @@ var capWidgets = [];			/* all widgets in the panel */
  * DOM nodes
  */
 var capDomContent;			/* body of the panel */
-var capMetricSelector;			/* metric selector */
-var capDecomp1Selector;			/* selector for first decomposition */
-var capDecomp2Selector;			/* selector for second decomposition */
 
 var capDefaultIp = '10.2.211.21';	/* default backend IP */
 var capLegendWidth = 200;		/* legend width */
@@ -127,114 +124,38 @@ function capInitConfig()
  */
 function capInitSelectors()
 {
-	var div, createbutton, loadbutton;
+	var div, widget;
 
-	div = $([
-	    '<div id="capInstnsLoadButton">Load server instrumentations</div>',
-	    '<br />',
-	    '<div class="capMetricSelector">',
-	    'Show <select id="capMetricSelectMetric"></select>',
-	    '<br />',
-	    'decomposed by ',
-	    '<select id="capMetricSelectDecomp1"></select> and ',
-	    '<select id="capMetricSelectDecomp2"></select>',
-	    '<div id="capInstnCreateButton">Create</div>',
-	    '</div>'
-	].join('\n'));
-	div.appendTo(capDomContent);
+	widget = new caWidgetCreateInstn({
+	    'conf': capConf,
+	    'oncreate': capInstnCreate
+	});
+	capDomContent[0].appendChild(widget.caElement);
 
-	createbutton = $('#capInstnCreateButton');
-	createbutton.button().click(capInstnCreate);
-
-	loadbutton = $('#capInstnsLoadButton');
-	loadbutton.button().click(function () {
-		loadbutton.fadeOut(250, function () { loadbutton.remove(); });
+	div = jsCreateElement('div');
+	div.appendChild(jsCreateText('Load server instrumentations'));
+	capDomContent[0].appendChild(div);
+	$(div).button().click(function () {
+		$(div).fadeOut(250, function () { $(div).remove(); });
 		capLoadServerInstns();
 	});
 
-	$('<div class="capHorizontalSeparator">').appendTo(capDomContent);
-
-	capMetricSelector = $('#capMetricSelectMetric')[0];
-	capDecomp1Selector = $('#capMetricSelectDecomp1')[0];
-	capDecomp2Selector = $('#capMetricSelectDecomp2')[0];
-
-	var count = 0;
-
-	capConf.eachMetric(function (metric) {
-		$('<option value="' + metric['module'] + '.' + metric['stat'] +
-		    '">' + metric['label'] + '</option>').appendTo(
-		    capMetricSelector);
-		count++;
-	});
-
-	if (count === 0) {
-		createbutton.attr('disabled', true);
-		capDecomp1Selector.attr('disabled', true);
-		capDecomp2Selector.attr('disabled', true);
-	}
-
-	capMetricSelected();
-	$(capMetricSelector).on('change', capMetricSelected);
-	$(capDecomp1Selector).on('change', capDecomp1Selected);
-}
-
-function capMetricSelected()
-{
-	var options = [];
-
-	options.push([ '', '<none>' ]);
-
-	capConf.eachField(capSelectedMetric(), function (_, fieldinfo) {
-		options.push([ fieldinfo['field'], fieldinfo['label'] ]);
-	});
-
-	capReplaceOptions(capDecomp1Selector, options);
-	capDecomp1Selected();
-}
-
-function capDecomp1Selected()
-{
-	var field = $(capDecomp1Selector).val();
-	var options = [];
-	var arity;
-
-	options.push([ '', '<none>' ]);
-
-	if (field !== '') {
-		arity = capConf.fieldArity(field);
-		capConf.eachField(capSelectedMetric(), function (_, fieldinfo) {
-			if (arity == capConf.fieldArity(fieldinfo['field']))
-				return;
-
-			options.push(
-			    [ fieldinfo['field'], fieldinfo['label'] ]);
-		});
-	}
-
-	capReplaceOptions(capDecomp2Selector, options);
-	$(capDecomp2Selector).attr('disabled', options.length == 1);
-}
-
-function capReplaceOptions(selector, options)
-{
-	while (selector.options.length > 0)
-		selector.remove(selector.options[0]);
-
-	options.forEach(function (optionspec) {
-		var option = selector.appendChild(jsCreateElement('option'));
-		option.value = optionspec[0];
-		option.appendChild(jsCreateText(optionspec[1]));
-	});
-
-	selector.selectedIndex = 0;
+	capDomContent[0].appendChild(
+	    jsCreateElement('div', 'capHorizontalSeparator'));
 }
 
 /*
- * Invoked once per second to update each widget.
+ * Invoked when the user clicks "Create" to create a new instrumentation as well
+ * as a new widget to present it.
  */
-function capTick()
+function capInstnCreate(params)
 {
-	capWidgets.forEach(function (w) { w.tick(); });
+	capBackend.instnCreate(params, function (err, instn) {
+		if (err)
+			jsFatalError(err);
+
+		capInstnMakeWidget(instn, capInstnRemoveNew);
+	});
 }
 
 /*
@@ -253,44 +174,12 @@ function capLoadServerInstns()
 	});
 }
 
-function capSelectedMetric()
-{
-	var metric_encoded = capMetricSelector.selectedOptions[0].value;
-	var dot = metric_encoded.indexOf('.');
-	var module = metric_encoded.substr(0, dot);
-	var stat = metric_encoded.substr(dot + 1);
-
-	return ({ 'module': module, 'stat': stat });
-}
-
 /*
- * Invoked when the user clicks "Create" to create a new instrumentation as well
- * as a new widget to present it.
+ * Invoked once per second to update each widget.
  */
-function capInstnCreate()
+function capTick()
 {
-
-	var metric = capSelectedMetric();
-	var decomps = [];
-	var value;
-
-	value = $(capDecomp1Selector).val();
-	if (value !== '') {
-		decomps.push(value);
-
-		value = $(capDecomp2Selector).val();
-		if (value !== '')
-			decomps.push(value);
-
-		metric['decomposition'] = decomps;
-	}
-
-	capBackend.instnCreate(metric, function (err, instn) {
-		if (err)
-			jsFatalError(err);
-
-		capInstnMakeWidget(instn, capInstnRemoveNew);
-	});
+	capWidgets.forEach(function (w) { w.tick(); });
 }
 
 /*

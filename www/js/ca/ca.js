@@ -309,6 +309,7 @@ caConf.prototype.instnClone = function ()
 	return (this.cc_backend.instnClone.apply(this.cc_backend, args));
 };
 
+
 /*
  * A caInstn represents a particular instrumentation and provides methods for
  * presenting the instrumentation and accessing the underlying data.
@@ -1018,6 +1019,145 @@ caView.prototype.onUpdate = function ()
 	if (this.cv_onupdate)
 		this.cv_onupdate();
 };
+
+
+/*
+ * General-purpose widget for allowing the user to create a new instrumentation.
+ * Users first select a base metric (e.g., "Network: bytes sent/received"), then
+ * are given options to select a primary and/or secondary decomposition.  In the
+ * future, this may support predicates, granularity, saving data to disk
+ * persistently, and so on.
+ *
+ * Arguments include:
+ *
+ *     conf		Initialized caConf object
+ *
+ *     oncreate		Function to be invoked when the user actually creates an
+ *     			instrumentation.  Invoked as oncreate(params), where
+ *     			"params" may contain any instrumentation-creation
+ *     			parameters, including "module", "stat", and
+ *     			"decomposition".
+ */
+function caWidgetCreateInstn(args)
+{
+	jsAssertObject(args, 'args');
+	jsAssertObject(args['conf'], 'args.conf');
+	jsAssertFunction(args['oncreate'], 'args.oncreate');
+
+	this.wci_conf = args['conf'];
+	this.wci_oncreate = args['oncreate'];
+
+	this.caElement = $([
+	    '<div class="caWidgetCreateInstn">',
+	    'Instrument <select class="caWidgetCreateSelectMetric"></select>',
+	    '<br />',
+	    'decomposed by ',
+	    '<select class="caWidgetCreateSelectDecomp"></select> and ',
+	    '<select class="caWidgetCreateSelectDecomp"></select>',
+	    '<div class="caWidgetCreateButton">Create</div>',
+	    '</div>'
+	].join('\n'))[0];
+
+	var widget = this;
+	var options = [];
+	var createbutton, selectors;
+
+	createbutton = this.caElement.getElementsByClassName(
+	    'caWidgetCreateButton')[0];
+	$(createbutton).button().click(function () { widget.created(); });
+
+	selectors = this.caElement.getElementsByTagName('select');
+	this.wci_metric = selectors[0];
+	this.wci_decomp1 = selectors[1];
+	this.wci_decomp2 = selectors[2];
+
+	this.wci_conf.eachMetric(function (metric) {
+		options.push([
+		    metric['module'] + '.' + metric['stat'],
+		    metric['label']
+		]);
+	});
+
+	jsSelectSetOptions(this.wci_metric, options);
+	if (options.length === 0) {
+		$(createbutton).attr('disabled', true);
+		$(this.wci_decomp1).attr('disabled', true);
+		$(this.wci_decomp2).attr('disabled', true);
+	}
+
+	this.metricSelected();
+	$(this.wci_metric).on('change',
+	    function () { widget.metricSelected(); });
+	$(this.wci_decomp1).on('change',
+	    function () { widget.decompSelected(); });
+}
+
+caWidgetCreateInstn.prototype.baseMetric = function ()
+{
+	var metric_encoded = this.wci_metric.selectedOptions[0].value;
+	var dot = metric_encoded.indexOf('.');
+	var module = metric_encoded.substr(0, dot);
+	var stat = metric_encoded.substr(dot + 1);
+
+	return ({ 'module': module, 'stat': stat });
+};
+
+caWidgetCreateInstn.prototype.metricSelected = function ()
+{
+	var options = [];
+
+	options.push([ '', '<none>' ]);
+	this.wci_conf.eachField(this.baseMetric(), function (_, fieldinfo) {
+		options.push([ fieldinfo['field'], fieldinfo['label'] ]);
+	});
+
+	jsSelectSetOptions(this.wci_decomp1, options);
+	this.decompSelected();
+};
+
+caWidgetCreateInstn.prototype.decompSelected = function ()
+{
+	var field = $(this.wci_decomp1).val();
+	var options = [];
+	var conf = this.wci_conf;
+	var arity;
+
+	options.push([ '', '<none>' ]);
+
+	if (field !== '') {
+		arity = this.wci_conf.fieldArity(field);
+		conf.eachField(this.baseMetric(), function (_, fieldinfo) {
+			if (arity == conf.fieldArity(fieldinfo['field']))
+				return;
+
+			options.push(
+			    [ fieldinfo['field'], fieldinfo['label'] ]);
+		});
+	}
+
+	jsSelectSetOptions(this.wci_decomp2, options);
+	$(this.wci_decomp2).attr('disabled', options.length == 1);
+};
+
+caWidgetCreateInstn.prototype.created = function ()
+{
+	var metric, value;
+
+	metric = this.baseMetric();
+	metric['decomposition'] = [];
+
+	value = $(this.wci_decomp1).val();
+	if (value !== '') {
+		metric['decomposition'].push(value);
+
+		value = $(this.wci_decomp2).val();
+		if (value !== '')
+			metric['decomposition'].push(value);
+	}
+
+	this.wci_oncreate(metric);
+};
+
 
 /*
  * Base class for chart-like widgets, which display both a toolbar, a chart

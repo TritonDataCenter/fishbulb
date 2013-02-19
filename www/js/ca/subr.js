@@ -213,6 +213,11 @@ function jsAssertObject(arg, label)
 	jsAssertType(arg, label, 'object');
 }
 
+function jsAssertFunction(arg, label)
+{
+	jsAssertType(arg, label, 'function');
+}
+
 function jsAssertEnum(arg, label, options)
 {
 	if (options.indexOf(arg) == -1)
@@ -305,6 +310,24 @@ function jsCreateText(text)
 function jsCssAppend(elt, classes)
 {
 	elt.className += ' ' + classes;
+}
+
+/*
+ * Given a DOM select element and a set of options as [ value, label ] tuples,
+ * replace any existing options on the selector with the new options.
+ */
+function jsSelectSetOptions(selector, options)
+{
+	while (selector.options.length > 0)
+		selector.remove(selector.options[0]);
+
+	options.forEach(function (optionspec) {
+		var option = selector.appendChild(jsCreateElement('option'));
+		option.value = optionspec[0];
+		option.appendChild(jsCreateText(optionspec[1]));
+	});
+
+	selector.selectedIndex = 0;
 }
 
 /*
