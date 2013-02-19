@@ -1343,8 +1343,6 @@ caWidgetChart.prototype.legendClicked = function (event)
 	    event.target.parentNode;
 	var row = this.cc_table.fnGetData(target);
 
-	console.log('click ' + event.target.tagName + '; row = ' + row);
-
 	if (row === null)
 		return;
 

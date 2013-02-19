@@ -5,7 +5,7 @@
 - Implement advanced create-time options
   - Save data persistently
   - Tweak granularity, ndatapoints, timeout interval
-  - Add decompositions and predicates with initial metric
+  - Add predicates with initial metric
   - Add customer-scoped view
   - Add public API backend
 - Other advanced options:
