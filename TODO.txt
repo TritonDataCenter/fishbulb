@@ -1,7 +1,8 @@
 - Legends
   - right-click option to add predicate + decomposition
   - right-click option to add pivot
-- Make y-axis labels be more specific (e.g., 1s instead of 1000000000)
+- Make y-axis and legend labels be more appropriate
+  (e.g., 1s instead of 1000000000)
 - Implement advanced create-time options
   - Save data persistently
   - Tweak granularity, ndatapoints, timeout interval

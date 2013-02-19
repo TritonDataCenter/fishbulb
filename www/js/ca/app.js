@@ -99,23 +99,7 @@ function capInitConfig()
 		    capSliderWidth;
 		capInitSelectors();
 		capPanel.unpause();
-
-		/*
-		 * TODO We initialize this per-second widget update
-		 * timer to start in 750ms so that it will always fire
-		 * after the per-second backend-fetch timer that the
-		 * panel uses.  Ideally, these timers would be offset by
-		 * the maximum latency expected from backend requests,
-		 * so that we update the widgets after we fetch the
-		 * backend data.  This still feels janky, and we should
-		 * probably go back to updating the widgets after each
-		 * per-second backend fetch, and live with the fact that
-		 * there will be variance in update time resulting from
-		 * variance in backend latency.
-		 */
-		setTimeout(function () {
-			capWidgetTimer = setInterval(capTick, 1000);
-		}, 750);
+		capWidgetTimer = setInterval(capTick, 1000);
 	});
 }
 
