@@ -39,6 +39,9 @@ var caColors = [
     '#f0738b'
 ].map(function (rgb) { return (new caColor(rgb)); });
 
+var jqClickLeft = 1;	/* left-click event code */
+var jqClickRight = 3;	/* right-click event code */
+
 /*
  * This object is created with parameters identifying the CA instance (including
  * hostname and port, and whether the target is the raw CA service or the
@@ -331,25 +334,23 @@ caInstn.prototype.title = function ()
 	if (metric === null)
 		return ('Unknown stat');
 
-	if (this.ci_instn['decomposition'].length === 0)
-		return (metric['label']);
-
 	var label = metric['label'];
+
+	if (this.ci_instn['predicate'] &&
+	    !jsIsEmpty(this.ci_instn['predicate'])) {
+		label += ' predicated on ' + caPredicateToEnglish(
+		    this.ci_conf, this.ci_instn['predicate']);
+	}
+
+	if (this.ci_instn['decomposition'].length === 0)
+		return (label);
 
 	label += ' decomposed by ' +
 	    this.ci_instn['decomposition'].map(function (fieldname) {
 	        return (conf.fieldLabel(fieldname));
 	    }).join(' and ');
 
-	/* XXX add predicate pieces */
 	return (label);
-};
-
-caInstn.prototype.shortTitle = function ()
-{
-	var title = this.title();
-	var colon = title.indexOf(':');
-	return (title.substr(colon == -1 ? 0 : colon + 2));
 };
 
 caInstn.prototype.id = function ()
@@ -360,6 +361,17 @@ caInstn.prototype.id = function ()
 caInstn.prototype.granularity = function ()
 {
 	return (this.ci_instn['granularity']);
+};
+
+caInstn.prototype.unit = function ()
+{
+	var metric, label;
+
+	metric = this.ci_conf.metric(
+	    this.ci_instn['module'], this.ci_instn['stat']);
+	label = metric['label'];
+	label = label.substr(label.indexOf(':') + 2);
+	return (label);
 };
 
 /* Lists available decompositions, given the current metric. */
@@ -394,6 +406,14 @@ caInstn.prototype.yLabel = function () {};
 caInstn.prototype.isNumericDecomposition = function ()
 {
 	return (this.ci_instn['value-arity'] == 'numeric-decomposition');
+};
+
+caInstn.prototype.baseMetric = function ()
+{
+	return ({
+	    'module': this.ci_instn['module'],
+	    'stat': this.ci_instn['stat']
+	});
 };
 
 /*
@@ -1016,7 +1036,7 @@ caView.prototype.setDuration = function (duration)
 /* XXX should use a proper event listener class */
 caView.prototype.onUpdate = function ()
 {
-	if (this.cv_onupdate)
+	if (!this.cv_removed && this.cv_onupdate)
 		this.cv_onupdate();
 };
 
@@ -1201,7 +1221,9 @@ function caWidgetChart(args)
 {
 	var widget = this;
 
+	this.cc_id = caUniqueId++;
 	this.caElement = caWidgetGenericGraph(args);
+	this.caElement.id = 'caGraph' + this.cc_id;
 
 	this.cc_args = args;
 	this.cc_oninstn = args['oninstn'];
@@ -1252,8 +1274,6 @@ function caWidgetChart(args)
 	    'action': 'actionZoomIn'
 	};
 
-	this.cc_id = caUniqueId++;
-
 	var buttons = [
 	    this.cc_button_pause,
 	    this.cc_button_zoomout,
@@ -1288,8 +1308,19 @@ function caWidgetChart(args)
 			button.id = conf['id'];
 	});
 
-	$(this.cc_components).click(function (event) {
+	$(this.cc_components).on('mousedown', function (event) {
 		widget.legendClicked(event);
+	});
+
+	$(this.cc_components).on('contextmenu', function (event) {
+		event.preventDefault();
+	});
+
+	$.contextMenu({
+	    'selector': '#caGraph' + this.cc_id + ' .caGraphLegendTable',
+	    'build': function (e) {
+		return (widget.legendMenu(e));
+	    }
 	});
 }
 
@@ -1314,7 +1345,9 @@ caWidgetChart.prototype.initMenu = function ()
 
 	if (!jsIsEmpty(decomps)) {
 		menu['decompose'] = {
-		    'name': 'Decompose ' + instn.shortTitle() + ' by ',
+		    'name': 'Decompose ' +
+		        (instn.ci_instn['decomposition'].length > 0 ?
+			'again ': '') + 'by ',
 		    'items': decomps
 		};
 	}
@@ -1482,6 +1515,7 @@ caWidgetChart.prototype.legendClicked = function (event)
 	    event.target.parentNode.parentNode :
 	    event.target.parentNode;
 	var row = this.cc_table.fnGetData(target);
+	var component;
 
 	if (row === null)
 		return;
@@ -1489,7 +1523,18 @@ caWidgetChart.prototype.legendClicked = function (event)
 	if (!row[2])
 		return;
 
-	var component = $(row[0]).text();
+	/*
+	 * We always toggle on a left-click.  We always *select* on a
+	 * right-click.
+	 */
+	component = $(row[0]).text();
+	if (event.which == jqClickLeft ||
+	    !this.cc_selected.hasOwnProperty(component))
+		this.toggleSelected($(row[0]).text());
+};
+
+caWidgetChart.prototype.toggleSelected = function (component)
+{
 	var color;
 
 	if (this.cc_selected.hasOwnProperty(component)) {
@@ -1506,6 +1551,113 @@ caWidgetChart.prototype.legendClicked = function (event)
 
 caWidgetChart.prototype.onSelectionChange = function ()
 {
+};
+
+caWidgetChart.prototype.legendMenu = function (target)
+{
+	var widget = this;
+	var menu = {};
+	var fields = {};
+	var instn, field, components, label;
+
+	/*
+	 * All of the menu actions invoke this function to create a new
+	 * instrumentaiton based on the current one.  "dopredicate" indicates
+	 * whether the new instrumentation should have a predicate on the
+	 * selected values, and "decompfield" indicates which *additional* field
+	 * to decompose by, if any.
+	 */
+	var docreate = function (dopredicate, decompfields) {
+		var predfield, conds, params, newpred;
+
+		/*
+		 * There should be exactly one discrete decomposition if the
+		 * user had a value selected.
+		 */
+		params = {};
+		if (dopredicate) {
+			predfield = instn.ci_instn['decomposition'].filter(
+			    function (f) {
+				return (instn.ci_conf.fieldArity(f) ==
+				    'discrete');
+			    })[0];
+
+			conds = components.map(function (comp) {
+				return ({ 'eq': [ predfield, comp ] });
+			});
+
+			if (conds.length == 1)
+				newpred = conds[0];
+			else
+				newpred = { 'or': conds };
+
+			if (instn.ci_instn['predicate'] &&
+			    !jsIsEmpty(instn.ci_instn['predicate'])) {
+				params['predicate'] = { 'and': [
+				    newpred,
+				    instn.ci_instn['predicate'] ] };
+			} else {
+				params['predicate'] = newpred;
+			}
+		}
+
+		params['decomposition'] = decompfields;
+		console.log(params);
+		instn.ci_conf.instnClone(instn, params,
+		    function (err, newinstn) {
+			if (err) {
+				/* XXX */
+				jsFatalError(err);
+			}
+
+			widget.cc_oninstn(newinstn);
+		    });
+	};
+
+	instn = this.instn();
+	instn.availDecomps().forEach(function (fieldinfo) {
+		menu['decompose.' + fieldinfo['field']] = {
+		    'name': 'Decompose ' +
+		        (instn.ci_instn['decomposition'].length > 0 ?
+			'again ' : '') + 'by ' + fieldinfo['label'],
+		    'callback': function () {
+		        docreate(false, instn.ci_instn['decomposition'].concat(
+			    [ fieldinfo['field'] ]));
+		    }
+		};
+	});
+
+	if (!jsIsEmpty(menu))
+		menu['sepl'] = '---------';
+
+	instn.ci_conf.eachField(instn.baseMetric(), function (_, fieldinfo) {
+		fields[fieldinfo['field']] = fieldinfo['label'];
+	});
+
+	components = Object.keys(this.cc_selected);
+	if (components.length > 0) {
+		if (components.length == 1)
+			label = '"' + components[0] + '"';
+		else
+			label = 'selected values';
+
+		menu['predicate.raw'] = {
+		    'name': 'Predicate on ' + label + ' as a raw statistic',
+		    'callback': function () { docreate(true, []); }
+		};
+
+		for (field in fields) {
+			menu['predicate.' + field] = {
+			    'name': 'Predicate on ' + label +
+			        ' decomposed by ' + fields[field],
+			    'callback': docreate.bind(null, true, [ field ])
+			};
+		}
+	}
+
+	return ({
+	    'items': menu
+	});
 };
 
 caWidgetChart.prototype.args = function ()
@@ -1894,7 +2046,7 @@ caWidgetLineGraph.prototype.update = function ()
 
 	if (this.cl_instn.ci_instn['decomposition'].length === 0) {
 		series.push({
-		    'name': this.title(),
+		    'name': this.cl_instn.unit(),
 		    'color': caDefaultBarColor,
 		    'data': rawpoints
 		});
@@ -2448,4 +2600,38 @@ function caWidgetGenericGraph(args)
 	subdiv.appendChild(jsCreateElement('div', 'caGraphLegend'));
 
 	return (div);
+}
+
+
+var caOperatorToEnglish = {
+    'lt': '<',
+    'le': '<=',
+    'ge': '>=',
+    'gt': '>',
+    'ne': '!=',
+    'eq': '=='
+};
+
+function caPredicateToEnglish(conf, pred, parenthesize)
+{
+	var k, operator, pieces, rv;
+
+	for (k in pred)
+		operator = k;
+
+	if (operator == 'and' || operator == 'or') {
+		pieces = pred[operator].map(function (piece) {
+		    return (caPredicateToEnglish(conf, piece, true));
+		});
+		rv = pieces.join(' ' + operator + ' ');
+		if (parenthesize)
+			rv = '(' + rv + ')';
+	} else {
+		rv = jsSprintf('%s %s %s',
+		    conf.fieldLabel(pred[operator][0]),
+		    caOperatorToEnglish[operator],
+		    pred[operator][1]);
+	}
+
+	return (rv);
 }

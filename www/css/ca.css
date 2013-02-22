@@ -13,16 +13,17 @@
  * Graph title bar.
  */
 .caGraphHeader {
-	height: 30px;
 	width: 100%;
 	color: #997966;
+	margin-bottom: 3px;
+	border-bottom: 1px solid;
 }
 
 .caGraphHeaderTitle {
 	color: #441900;
 	font-weight: bold;
 	font-size: medium;
-	border-bottom: 1px solid;
+	margin-right: 50px;
 }
 
 .caGraphButtonClose {
@@ -166,7 +167,7 @@ div.caGraphData div.caSlider {
 }
 
 /*
- * Context menu.
+ * Context menus.
  */
 ul.caGraphCloneMenu li {
 	/*

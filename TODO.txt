@@ -1,5 +1,4 @@
 - Legends
-  - right-click option to add predicate + decomposition
   - right-click option to add pivot
 - Make y-axis and legend labels be more appropriate
   (e.g., 1s instead of 1000000000)
