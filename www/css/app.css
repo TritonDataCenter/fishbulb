@@ -114,3 +114,6 @@ a {
 	margin-bottom: 40px;
 }
 
+.capControls > div {
+	display: inline-block;
+}

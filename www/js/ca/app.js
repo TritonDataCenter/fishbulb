@@ -108,24 +108,26 @@ function capInitConfig()
  */
 function capInitSelectors()
 {
-	var div, widget;
+	var groupdiv, div, widget;
+
+	groupdiv = jsCreateElement('div', 'capControls');
+	capDomContent[0].appendChild(groupdiv);
+	capDomContent[0].appendChild(
+	    jsCreateElement('div', 'capHorizontalSeparator'));
 
 	widget = new caWidgetCreateInstn({
 	    'conf': capConf,
 	    'oncreate': capInstnCreate
 	});
-	capDomContent[0].appendChild(widget.caElement);
+	groupdiv.appendChild(widget.caElement);
 
-	div = jsCreateElement('div');
+	div = jsCreateElement('div', 'capFloatRight');
 	div.appendChild(jsCreateText('Load server instrumentations'));
-	capDomContent[0].appendChild(div);
+	groupdiv.appendChild(div);
 	$(div).button().click(function () {
 		$(div).fadeOut(250, function () { $(div).remove(); });
 		capLoadServerInstns();
 	});
-
-	capDomContent[0].appendChild(
-	    jsCreateElement('div', 'capHorizontalSeparator'));
 }
 
 /*

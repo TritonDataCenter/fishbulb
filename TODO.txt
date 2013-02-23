@@ -4,14 +4,22 @@
   (e.g., 1s instead of 1000000000)
 - Implement advanced create-time options
   - Save data persistently
-  - Tweak granularity, ndatapoints, timeout interval
+  - Tweak granularity, ndatapoints, idle timeout
   - Add predicates with initial metric
+  - May want to hide most of this in a dialog ("advanced create")
+- Advanced init-time options:
   - Add customer-scoped view
   - Add public API backend
+  - Add ability to save a session and restore it using a link (or cookie):
+    - "save" serializes the current state via JSON and either saves it to a
+      cookie or gives you a link that you can give to anyone else
+    - "restore" deserializes the JSON blob and loads the given widgets, dealing
+      with errors due to auth, or expired instrumentations
 - Other advanced options:
   - change heat map bucket size
   - option to show median, Nth percentile
 - Handle errors better, including:
+  - Report create-time validation errors better
   - CA not available at startup
   - Transient failure of the CA service
   - Heat map: impose maximum width based on backend's maximum
