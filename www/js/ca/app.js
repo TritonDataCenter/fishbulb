@@ -121,7 +121,7 @@ function capInitSelectors()
 	});
 	groupdiv.appendChild(widget.caElement);
 
-	div = jsCreateElement('div', 'capFloatRight');
+	div = jsCreateElement('div');
 	div.appendChild(jsCreateText('Load server instrumentations'));
 	groupdiv.appendChild(div);
 	$(div).button().click(function () {

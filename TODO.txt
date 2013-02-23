@@ -1,12 +1,8 @@
+- Make create-time controls functional (idle-max, granularity, etc.)
 - Legends
   - right-click option to add pivot
 - Make y-axis and legend labels be more appropriate
   (e.g., 1s instead of 1000000000)
-- Implement advanced create-time options
-  - Save data persistently
-  - Tweak granularity, ndatapoints, idle timeout
-  - Add predicates with initial metric
-  - May want to hide most of this in a dialog ("advanced create")
 - Advanced init-time options:
   - Add customer-scoped view
   - Add public API backend

@@ -1069,18 +1069,92 @@ function caWidgetCreateInstn(args)
 
 	this.caElement = $([
 	    '<div class="caWidgetCreateInstn">',
-	    'Instrument <select class="caWidgetCreateSelectMetric"></select>',
-	    '<br />',
-	    'decomposed by ',
-	    '<select class="caWidgetCreateSelectDecomp"></select> and ',
-	    '<select class="caWidgetCreateSelectDecomp"></select>',
-	    '<div class="caWidgetCreateButton">Create</div>',
+	    '<table class="caConfigTable">',
+	    '<tr>',
+	    '  <td class="caConfigLabel">Instrument</td>',
+	    '  <td><select class="caWidgetCreateSelectMetric"></select></td>',
+	    '</tr>',
+	    '<tr>',
+	    '  <td class="caConfigLabel">Decompose by</td>',
+	    '  <td>',
+	    '    <select class="caWidgetCreateSelectDecomp"></select> and ',
+	    '    <select class="caWidgetCreateSelectDecomp"></select>',
+	    '  </td>',
+	    '</tr>',
+	    '<tr class="caHidden">',
+	    '  <td class="caConfigLabel">Keep</td>',
+	    '  <td>',
+	    '    <input type="text" value="10 minutes" size="15" ',
+	    '        disabled="disabled"></input> ',
+	    '    of data',
+	    '  </td>',
+	    '</tr>',
+	    '<tr class="caHidden">',
+	    '  <td class="caConfigLabel">at a resolution of</td>',
+	    '  <td>',
+	    '    <input type="text" value="1 second" size="15"',
+	    '        disabled="disabled"></input> ',
+	    '  </td>',
+	    '</tr>',
+	    '<tr class="caHidden">',
+	    '  <td class="caConfigLabel">Stop after</td>',
+	    '  <td>',
+	    '    <input type="text" value="1 hour" size="15"',
+	    '        disabled="disabled"></input> ',
+	    '    of inactivity',
+	    '  </td>',
+	    '</tr>',
+	    '<tr class="caHidden">',
+	    '  <td class="caConfigLabel">Persist data to disk</td>',
+	    '  <td>',
+	    '    <input type="checkbox" disabled="disabled"></input>',
+	    '  </td>',
+	    '</tr>',
+	    '<tr>',
+	    '<td><div class="caWidgetExpandButton">More options</div></td>',
+	    '<td><div class="caWidgetCreateButton">Create</div></td>',
+	    '</tr>',
+	    '</table>',
 	    '</div>'
 	].join('\n'))[0];
 
 	var widget = this;
 	var options = [];
-	var createbutton, selectors;
+	var expanded = false;
+	var expandbutton, extras, createbutton, selectors;
+
+	extras = this.caElement.getElementsByClassName('caHidden');
+	expandbutton = this.caElement.getElementsByClassName(
+	    'caWidgetExpandButton')[0];
+	$(expandbutton).button({
+	    'icons': {
+	        'secondary': 'ui-icon-triangle-1-s'
+	    }
+	});
+	$(expandbutton).click(function () {
+		if (!expanded) {
+			// $(extras).slideDown(250);
+			$(extras).show();
+			$(expandbutton).button('destroy');
+			$(expandbutton).text('Fewer options');
+			$(expandbutton).button({
+			    'icons': {
+				'secondary': 'ui-icon-triangle-1-n'
+			    }
+			});
+		} else {
+			$(extras).hide();
+			$(expandbutton).button('destroy');
+			$(expandbutton).text('More options');
+			$(expandbutton).button({
+			    'icons': {
+				'secondary': 'ui-icon-triangle-1-s'
+			    }
+			});
+		}
+
+		expanded = !expanded;
+	});
 
 	createbutton = this.caElement.getElementsByClassName(
 	    'caWidgetCreateButton')[0];

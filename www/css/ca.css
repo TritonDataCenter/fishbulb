@@ -9,6 +9,10 @@
 	width: 100%;
 }
 
+.caHidden {
+	display: none;
+}
+
 /*
  * Graph title bar.
  */
@@ -186,12 +190,15 @@ table.caConfigTable {
 	padding-right: 30px;
 }
 
+table.caConfigTable td {
+	vertical-align: middle;
+}
+
 table.caConfigTable td.caConfigLabel {
 	padding-right: 20px;
 	font-weight: bold;
 	font-size: small;
 	white-space: nowrap;
-	vertical-align: middle;
 }
 
 table.caConfigTable td.caConfigValue {
@@ -227,4 +234,21 @@ div.ui-button-text-only span.ui-button-text {
 .caDialogIcon {
 	float: left;
 	margin: 0 7px 50px 0;
+}
+
+/*
+ * Metric selector widget
+ */
+div.caWidgetCreateInstn .caConfigTable td.caConfigLabel {
+	width: 135px;
+	padding-right: 0px;
+}
+
+div.caWidgetExpandButton {
+	width: auto;
+	padding-right: +0.5em;
+}
+
+div.caWidgetExpandButton span.ui-button-text {
+	font-size: x-small;
 }
