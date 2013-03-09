@@ -1,5 +1,8 @@
 # Fishbulb: browser library and widgets for Cloud Analytics
 
+**Note:** This library is currently only useful for SDC operators, and it's
+completely unsupported.  It will not work with the Joyent Public Cloud.
+
 Fishbulb provides a browser library for Cloud Analytics, including a a client
 library for managing data as well as some useful widgets.  Fishbulb also
 provides a demo portal for using CA.
@@ -11,12 +14,10 @@ service (not the public-facing API).  After cloning this repo, simply open up
 www/index.html in your browser, enter the IP of the CA backend service, and
 click "Connect".
 
-
 # Status
 
 This library is a work in progress.  The demo is moderately functional, but the
 widget library interface is highly unstable.
-
 
 # More information
 
