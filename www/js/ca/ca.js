@@ -2105,7 +2105,8 @@ caWidgetLineGraph.prototype.initGraph = function ()
 	this.cl_xaxis.render();
 
 	this.cl_hover = new Rickshaw.Graph.HoverDetail({
-	    'graph': this.cl_rickshaw
+	    'graph': this.cl_rickshaw,
+	    'yFormatter': this.tickFormat()
 	});
 };
 
@@ -2435,7 +2436,8 @@ caWidgetHeatMap.prototype.initGraph = function ()
 	});
 	this.cm_xaxis.render();
 	this.cm_hover = new Rickshaw.Graph.HoverDetail({
-	    'graph': this.cm_rickshaw
+	    'graph': this.cm_rickshaw,
+	    'yFormatter': this.tickFormat()
 	});
 };
 
